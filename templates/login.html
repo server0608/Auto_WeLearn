@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card" style="max-width:420px;margin:0 auto;">
   <h2>登录 WeLearn Web</h2>
-  <p style="color:var(--muted);margin-bottom:16px;">使用管理员创建的账号登录。首次启动默认管理员：admin / admin123。</p>
+  <p style="color:var(--muted);margin-bottom:16px;">使用已有账号登录。首次启动默认管理员：admin / admin123。</p>
   <form method="post">
     <div>
       <label for="username">用户名</label>
@@ -15,5 +15,6 @@
     </div>
     <button type="submit">登录</button>
   </form>
+  <p style="margin-top:12px;color:var(--muted);">还没有账号？<a href="{{ url_for('register_user') }}" style="color:var(--accent);text-decoration:none;font-weight:700;">注册一个</a></p>
 </div>
 {% endblock %}

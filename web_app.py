@@ -97,6 +97,29 @@ def login():
     return render_template("login.html")
 
 
+@app.route("/register", methods=["GET", "POST"])
+def register_user():
+    """注册普通用户账号"""
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        confirm = request.form.get("confirm", "").strip()
+        if not username or not password:
+            flash("用户名和密码不能为空", "warning")
+            return redirect(url_for("register_user"))
+        if password != confirm:
+            flash("两次输入的密码不一致", "warning")
+            return redirect(url_for("register_user"))
+
+        success, message = user_store.add_user(username, password, role="user")
+        if success:
+            flash("用户注册成功，请登录", "success")
+            return redirect(url_for("login"))
+        flash(message or "注册失败", "danger")
+
+    return render_template("register_admin.html")
+
+
 @app.route("/logout", methods=["POST"])
 def logout():
     session.pop("username", None)

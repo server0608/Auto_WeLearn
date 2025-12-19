@@ -146,6 +146,7 @@
         </form>
       {% else %}
         <a href="{{ url_for('login') }}" class="{{ 'active' if request.path.startswith('/login') else '' }}">登录</a>
+        <a href="{{ url_for('register_user') }}" class="{{ 'active' if request.path.startswith('/register') else '' }}">用户注册</a>
       {% endif %}
     </nav>
   </header>
