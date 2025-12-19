@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="margin-bottom:18px;">
+  <h2>添加用户</h2>
+  <p style="color:var(--muted);margin-bottom:10px;">管理员可创建/删除普通用户；如需更多管理员，可在此选择角色。</p>
+  <form method="post" action="{{ url_for('admin_add_user') }}">
+    <div class="form-row">
+      <div>
+        <label for="username">用户名</label>
+        <input id="username" name="username" required>
+      </div>
+      <div>
+        <label for="password">密码</label>
+        <input id="password" name="password" type="password" required>
+      </div>
+    </div>
+    <div>
+      <label for="role">角色</label>
+      <select id="role" name="role">
+        <option value="user">普通用户</option>
+        <option value="admin">管理员</option>
+      </select>
+    </div>
+    <button type="submit">创建</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>用户列表 ({{ users|length }})</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>用户名</th>
+        <th>角色</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td><span class="pill {{ 'admin' if u.role == 'admin' else 'user' }}">{{ '管理员' if u.role == 'admin' else '普通用户' }}</span></td>
+        <td>
+          {% if u.username != user.username %}
+          <form method="post" action="{{ url_for('admin_delete_user', username=u.username) }}" onsubmit="return confirm('确认删除用户 {{ u.username }} ?');">
+            <button type="submit" class="danger">删除</button>
+          </form>
+          {% else %}
+          <span style="color:var(--muted);">当前登录用户</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

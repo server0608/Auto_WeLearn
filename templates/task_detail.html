@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="margin-bottom:12px;">
+  <h2>任务 {{ task.id }}</h2>
+  <p style="color:var(--muted);margin-bottom:6px;">账号 {{ task.account.username }} ｜ 课程 {{ task.course_name }} ｜ 状态：{{ task.status }}</p>
+  <div class="actions" style="margin-bottom:8px;">
+    <a href="{{ url_for('dashboard') }}" style="color:var(--accent);text-decoration:none;">← 返回面板</a>
+    {% if task.status in ['pending','running'] %}
+    <form method="post" action="{{ url_for('task_stop', task_id=task.id) }}">
+      <button type="submit" class="danger">停止任务</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if task.result %}
+    <p style="color:var(--muted);margin-top:6px;">结果：步骤1 成功 {{ task.result.get('way1_succeed',0) }} / 失败 {{ task.result.get('way1_failed',0) }}；步骤2 成功 {{ task.result.get('way2_succeed',0) }} / 失败 {{ task.result.get('way2_failed',0) }}。</p>
+  {% endif %}
+  {% if task.status in ['pending','running'] %}
+    <p style="color:var(--muted);">页面每 5 秒刷新一次以查看最新日志。</p>
+    <meta http-equiv="refresh" content="5">
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>日志</h3>
+  {% if task.logs %}
+  <div style="max-height:480px;overflow:auto;">
+    {% for log in task.logs|reverse %}
+      <div class="flash {{ log.level }}" style="margin-bottom:8px;">
+        <strong>{{ log.timestamp | datetimeformat }}</strong> - {{ log.message }}
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <p style="color:var(--muted);">暂无日志</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="margin-bottom:18px;">
+  <h2>我的 WeLearn 账号</h2>
+  <p style="color:var(--muted);margin-bottom:10px;">在浏览器中直接添加、删除账号，后续可扩展自动化任务。</p>
+  <div class="form-row">
+    <form method="post" action="{{ url_for('add_account') }}">
+      <div class="form-row">
+        <div>
+          <label for="acc-username">账号</label>
+          <input id="acc-username" name="username" required>
+        </div>
+        <div>
+          <label for="acc-password">密码</label>
+          <input id="acc-password" name="password" type="password" required>
+        </div>
+      </div>
+      <div>
+        <label for="acc-nickname">昵称（可选，方便识别）</label>
+        <input id="acc-nickname" name="nickname" placeholder="例如：本学期英语">
+      </div>
+      <button type="submit">添加账号</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <h3>账号列表 ({{ accounts|length }})</h3>
+    <span style="color:var(--muted);">登录用户：{{ user.username }}</span>
+  </div>
+  {% if accounts %}
+    <table>
+      <thead>
+        <tr>
+          <th>账号</th>
+          <th>昵称</th>
+          <th>状态</th>
+          <th>进度</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for acc in accounts %}
+        <tr>
+          <td>{{ acc.username }}</td>
+          <td>{{ acc.nickname or '-' }}</td>
+          <td>{{ acc.status }}</td>
+          <td>{{ acc.progress or '-' }}</td>
+          <td>
+            <div class="actions">
+              <a href="{{ url_for('account_courses', account_username=acc.username) }}" style="color:var(--accent);font-weight:700;">课程</a>
+              <form method="post" action="{{ url_for('delete_account', account_username=acc.username) }}" onsubmit="return confirm('确认删除该账号？');">
+                <button type="submit" class="danger">删除</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color:var(--muted);">暂无账号，先添加一个吧。</p>
+  {% endif %}
+</div>
+
+<div id="tasks" class="card" style="margin-top:18px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <h3>我的任务 ({{ tasks|length }})</h3>
+    <span style="color:var(--muted);">刷新页面获取最新状态</span>
+  </div>
+  {% if tasks %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>课程</th>
+        <th>模式</th>
+        <th>状态</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tasks|sort(attribute='id', reverse=True) %}
+      <tr>
+        <td>{{ t.id }}</td>
+        <td>{{ t.course_name }}</td>
+        <td>{{ '刷时长' if t.mode == 'time' else '刷作业' }}</td>
+        <td>{{ t.status }}</td>
+        <td><a href="{{ url_for('task_detail', task_id=t.id) }}" style="color:var(--accent);font-weight:700;">查看</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p style="color:var(--muted);">暂无任务</p>
+  {% endif %}
+</div>
+{% endblock %}

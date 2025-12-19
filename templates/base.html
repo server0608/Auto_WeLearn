@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WeLearn Web 控制台</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --accent: #22c55e;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+    body {
+      font-family: "Segoe UI", "PingFang SC", sans-serif;
+      background: radial-gradient(circle at 20% 20%, #122043, #0f172a 40%), linear-gradient(135deg, #0f172a 0%, #0b1224 100%);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    nav a {
+      color: var(--text);
+      text-decoration: none;
+      margin-right: 14px;
+      font-weight: 600;
+    }
+    nav a.active {
+      color: var(--accent);
+    }
+    .container {
+      width: min(1080px, 94%);
+      margin: 26px auto 40px;
+      flex: 1;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+    h1, h2, h3 {
+      margin: 0 0 12px 0;
+      color: #f8fafc;
+      letter-spacing: 0.4px;
+    }
+    form {
+      display: grid;
+      gap: 12px;
+    }
+    label {
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    input, select {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: #0b1224;
+      color: var(--text);
+    }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(120deg, #22c55e, #16a34a);
+      color: #0b1224;
+      transition: transform .1s ease, box-shadow .2s ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(34,197,94,.35); }
+    button.secondary { background: #1f2937; color: var(--text); }
+    button.danger { background: #b91c1c; color: #fff; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      text-align: left;
+      color: #d1d5db;
+    }
+    th { color: #a5b4fc; font-weight: 700; }
+    .flash {
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .flash.success { background: rgba(34,197,94,0.12); color: #bbf7d0; }
+    .flash.danger { background: rgba(239,68,68,0.14); color: #fecdd3; }
+    .flash.warning { background: rgba(245,158,11,0.14); color: #fde68a; }
+    .flash.info { background: rgba(59,130,246,0.14); color: #bfdbfe; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .actions { display: flex; gap: 8px; align-items: center; }
+    .pill {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #0b1224;
+      background: #22c55e;
+      font-weight: 700;
+    }
+    .pill.admin { background: #22d3ee; }
+    .pill.user { background: #f59e0b; }
+    @media (max-width: 720px) {
+      .form-row { grid-template-columns: 1fr; }
+      header { flex-direction: column; align-items: flex-start; }
+      nav { margin-top: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-weight:800;letter-spacing:1px;">WeLearn Web</span>
+      {% if user %}
+      <span class="pill {{ 'admin' if user.role == 'admin' else 'user' }}">{{ '管理员' if user.role == 'admin' else '普通用户' }}</span>
+      {% endif %}
+    </div>
+    <nav>
+      {% if user %}
+        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.path.startswith('/dashboard') else '' }}">账号面板</a>
+        <a href="{{ url_for('dashboard') }}#tasks" class="{{ 'active' if request.path.startswith('/tasks') else '' }}">任务</a>
+        {% if user.role == 'admin' %}
+          <a href="{{ url_for('admin_users') }}" class="{{ 'active' if request.path.startswith('/admin/users') else '' }}">用户管理</a>
+        {% endif %}
+        <form action="{{ url_for('logout') }}" method="post" style="display:inline;">
+          <button type="submit" class="secondary">退出</button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="{{ 'active' if request.path.startswith('/login') else '' }}">登录</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

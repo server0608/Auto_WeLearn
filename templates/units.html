@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="margin-bottom:16px;">
+  <h2>选择单元 - {{ course_name }}</h2>
+  <p style="color:var(--muted);margin-bottom:8px;">选择要刷的单元和模式，提交后在后台执行。</p>
+  <a href="{{ url_for('account_courses', account_username=account.username) }}" style="color:var(--accent);text-decoration:none;">← 返回课程列表</a>
+</div>
+
+<div class="card">
+  <form method="post" action="{{ url_for('start_task') }}">
+    <input type="hidden" name="account_username" value="{{ account.username }}">
+    <input type="hidden" name="course_name" value="{{ course_name }}">
+    <input type="hidden" name="cid" value="{{ cid }}">
+    <input type="hidden" name="uid" value="{{ uid }}">
+    <input type="hidden" name="classid" value="{{ classid }}">
+
+    <h3 style="margin-bottom:6px;">单元选择</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:12px;">
+      {% for unit in units %}
+      <label style="display:flex;gap:8px;align-items:center;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 10px;background:#0b1224;">
+        <input type="checkbox" name="units" value="{{ loop.index0 }}" checked>
+        <span>{{ loop.index }}. {{ unit.get('name', '未命名单元') }}</span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <h3 style="margin-bottom:6px;">模式与参数</h3>
+    <div class="form-row">
+      <div>
+        <label for="mode">模式</label>
+        <select id="mode" name="mode" onchange="toggleMode(this.value)">
+          <option value="homework">刷作业（提交正确率）</option>
+          <option value="time">刷时长（并发模拟时长）</option>
+        </select>
+      </div>
+      <div id="homework-box">
+        <label>正确率（可设置区间）</label>
+        <div style="display:flex;gap:8px;">
+          <input type="number" name="accuracy_min" value="95" min="0" max="100" style="flex:1;">
+          <input type="number" name="accuracy_max" value="100" min="0" max="100" style="flex:1;">
+        </div>
+      </div>
+      <div id="time-box" style="display:none;">
+        <label>单元总时长 / 随机扰动（分钟）</label>
+        <div style="display:flex;gap:8px;">
+          <input type="number" name="total_minutes" value="60" min="1" style="flex:1;">
+          <input type="number" name="random_range" value="5" min="0" style="flex:1;">
+        </div>
+        <label style="margin-top:8px;">并发数量</label>
+        <input type="number" name="max_concurrent" value="10" min="1" max="50">
+      </div>
+    </div>
+
+    <button type="submit" style="margin-top:10px;">开始任务</button>
+  </form>
+</div>
+
+<script>
+  function toggleMode(mode) {
+    document.getElementById('homework-box').style.display = mode === 'homework' ? 'block' : 'none';
+    document.getElementById('time-box').style.display = mode === 'time' ? 'block' : 'none';
+  }
+</script>
+{% endblock %}

@@ -4,6 +4,7 @@
 """
 import json
 import csv
+from pathlib import Path
 from typing import List, Dict, Optional
 from dataclasses import dataclass, asdict
 
@@ -144,6 +145,32 @@ class AccountManager:
         
         except Exception as e:
             return False, f"导出失败: {str(e)}"
+    
+    def load_from_file(self, filepath: str | Path) -> None:
+        """从 JSON 文件中加载账号列表"""
+        path = Path(filepath)
+        if not path.exists():
+            return
+        
+        try:
+            data = json.loads(path.read_text(encoding="utf-8") or "[]")
+        except json.JSONDecodeError:
+            return
+        
+        accounts_data = data.get("accounts") if isinstance(data, dict) else data
+        if not isinstance(accounts_data, list):
+            return
+        
+        self.accounts = [
+            Account.from_dict(item) for item in accounts_data if isinstance(item, dict)
+        ]
+    
+    def save_to_file(self, filepath: str | Path) -> None:
+        """将账号列表存储到 JSON 文件"""
+        path = Path(filepath)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        serialized = [acc.to_dict() for acc in self.accounts]
+        path.write_text(json.dumps(serialized, ensure_ascii=False, indent=2), encoding="utf-8")
     
     def reset_all_status(self):
         """重置所有账号状态"""

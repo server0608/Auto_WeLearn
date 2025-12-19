@@ -74,6 +74,22 @@ pip install -e .
 python main.py
 ```
 
+### Web 界面
+
+新增了可在浏览器使用的控制台，并带有管理员增删普通用户的功能。
+
+```bash
+# 安装依赖后启动 Web 版（默认端口 8000）
+python web_app.py
+# 可选：自定义管理员初始密码与服务配置
+# WELEARN_ADMIN_PASSWORD=your_password WELEARN_WEB_PORT=8080 python web_app.py
+```
+
+- 首次启动会自动创建管理员账号：`admin / admin123`（可通过环境变量覆盖）。  
+- 管理员登录后可在“用户管理”页面添加/删除普通用户或再创建其他管理员。
+- 每个登录用户拥有独立的 WeLearn 账号列表，数据保存在 `data/accounts/<username>.json`，用户信息保存在 `data/users.json`。
+- Web 功能已覆盖桌面版主要流程：浏览器内登录 WeLearn、查看课程与单元、选择“刷作业/刷时长”并发起任务，任务日志可在“任务”页面查看/停止。
+
 ## 功能特点
 
 ### 刷作业模式

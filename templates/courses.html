@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="margin-bottom:16px;">
+  <h2>课程列表 - {{ account.nickname or account.username }}</h2>
+  <p style="color:var(--muted);margin-bottom:8px;">已登录 WeLearn，可选择课程并进入单元。</p>
+  <a href="{{ url_for('dashboard') }}" style="color:var(--accent);text-decoration:none;">← 返回账号面板</a>
+</div>
+
+<div class="card">
+  {% if courses %}
+  <table>
+    <thead>
+      <tr>
+        <th>课程名称</th>
+        <th>进度</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in courses %}
+      <tr>
+        <td>{{ c.get('name') }}</td>
+        <td>{{ c.get('per', 0) }}%</td>
+        <td>
+          <a href="{{ url_for('account_units', account_username=account.username, cid=c.get('cid')) }}?course_name={{ c.get('name') }}" style="color:var(--accent);font-weight:700;">选择单元</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p style="color:var(--muted);">未获取到课程，请稍后重试。</p>
+  {% endif %}
+</div>
+{% endblock %}
