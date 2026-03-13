@@ -1,14 +1,9 @@
 {
   "users": [
     {
-      "username": "server0608",
-      "password_hash": "scrypt:32768:8:1$uied9E5e47q4dHDn$8005a92324f8b6eddde443a6413b76de1dd33bbd178d9ded96889aae519ec37ca3370ca94639806c41c8066f2affb2b6119931a1902e606789cd01e8567da54e",
+      "username": "admin",
+      "password_hash": "scrypt:32768:8:1$I7BakRqTpfJv64qQ$8a763003c3dc91ad655b04739ead73b87552ed362a4305f3cb8f43e5b9b8e084dd1ecfa58c1bfd03fee1bf40bd657e00d7e6723c74c568747bad3d6c7b2960a1",
       "role": "admin"
-    },
-    {
-      "username": "root",
-      "password_hash": "scrypt:32768:8:1$WQXnwtEaUBvvOVq9$d48ad95a8c463d1666c575b72fd520db71541bdf460ac69c59ef081b621cdfad37a95181b56d9cada623ee86f0b9cbee29a9aa99be7d4f9c0cc49b397dce7382",
-      "role": "user"
     }
   ]
 }
