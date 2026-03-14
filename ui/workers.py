@@ -1,5 +1,6 @@
 from PyQt5.QtCore import QThread, pyqtSignal
 import random
+import time
 from core.api import WeLearnClient
 
 class LoginThread(QThread):
@@ -214,7 +215,7 @@ class TimeStudyThread(QThread):
             "start", f"[并发刷时长] {course_location} - {learning_time}秒"
         )
         
-        success = self.client.simulate_time(self.cid, self.uid, chapter["id"], learning_time)
+        success = self.simulate_time_interruptible(chapter["id"], learning_time)
         
         if success:
             self.progress_update.emit(
@@ -224,6 +225,52 @@ class TimeStudyThread(QThread):
             self.progress_update.emit("error", f"[失败] {course_location}")
         
         return success
+
+    def simulate_time_interruptible(self, scoid, learning_time):
+        """支持停止信号的刷时长实现。"""
+        try:
+            common_data = {"uid": self.uid, "cid": self.cid, "scoid": scoid}
+            common_headers = {
+                "Referer": f"{self.client.BASE_URL}/student/StudyCourse.aspx"
+            }
+            ajax_url = f"{self.client.BASE_URL}/Ajax/SCO.aspx"
+
+            self.client.session.post(
+                ajax_url,
+                data={**common_data, "action": "startsco160928"},
+                headers=common_headers,
+            )
+
+            for current_time in range(1, learning_time + 1):
+                if self._stop_flag:
+                    return False
+                time.sleep(1)
+                if current_time % 60 == 0:
+                    self.client.session.post(
+                        ajax_url,
+                        data={
+                            **common_data,
+                            "action": "keepsco_with_getticket_with_updatecmitime",
+                        },
+                        headers=common_headers,
+                    )
+
+            self.client.session.post(
+                ajax_url,
+                data={
+                    **common_data,
+                    "action": "savescoinfo160928",
+                    "progress": "100",
+                    "crate": "0",
+                    "status": "unknown",
+                    "cstatus": "completed",
+                    "trycount": "0",
+                },
+                headers=common_headers,
+            )
+            return True
+        except Exception:
+            return False
 
     def process_unit_concurrent(self, unit_index):
         """并发处理一个单元的所有课程"""

@@ -2,11 +2,13 @@
 账号详情对话框
 用于单个账号的精细化管理：手动选课、单独执行、查看日志
 """
+from datetime import datetime
+
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QPushButton,
     QListWidget, QListWidgetItem, QLabel, QTextEdit, QMessageBox,
-    QComboBox, QSpinBox, QSplitter, QWidget, QProgressBar
+    QComboBox, QSpinBox, QSplitter, QWidget, QProgressBar, QFrame
 )
 from core.api import WeLearnClient
 from core.account_manager import Account
@@ -40,27 +42,37 @@ class AccountDetailDialog(QDialog):
         self.course_thread = None
         self.units_thread = None
         self.study_thread = None  # 刷作业/刷时长通用
+        self._manual_stop_requested = False
         
         self.init_ui()
         self.setWindowTitle(f"账号管理 - {account.nickname or account.username}")
-        self.setMinimumSize(700, 500)
+        self.setMinimumSize(920, 620)
     
     def init_ui(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(14)
         
         # ========== 账号信息 ==========
-        info_layout = QHBoxLayout()
+        info_panel = QFrame()
+        info_panel.setObjectName("ToolbarPanel")
+        info_layout = QHBoxLayout(info_panel)
+        info_layout.setContentsMargins(18, 16, 18, 16)
         info_layout.addWidget(QLabel(f"<b>用户名:</b> {self.account.username}"))
         info_layout.addWidget(QLabel(f"<b>昵称:</b> {self.account.nickname or '无'}"))
         self.status_label = QLabel(f"<b>状态:</b> {self.account.status}")
         info_layout.addWidget(self.status_label)
         info_layout.addStretch()
         
-        self.login_btn = QPushButton("🔐 登录")
+        self.login_btn = QPushButton("登录账号")
         self.login_btn.clicked.connect(self.do_login)
         info_layout.addWidget(self.login_btn)
         
-        layout.addLayout(info_layout)
+        layout.addWidget(info_panel)
+
+        helper_label = QLabel("先登录并拉取课程，再选择单元与执行模式。日志区会持续输出任务进度。")
+        helper_label.setObjectName("SectionHint")
+        layout.addWidget(helper_label)
         
         # ========== 分割器：左侧课程选择 + 右侧日志 ==========
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -94,6 +106,7 @@ class AccountDetailDialog(QDialog):
         course_info_layout.addWidget(QLabel("目标课程:"))
         self.current_course_label = QLabel("未选择")
         self.current_course_label.setStyleSheet("color: #666; font-style: italic;")
+        self.current_course_label.setWordWrap(True)
         course_info_layout.addWidget(self.current_course_label)
         course_info_layout.addStretch()
         settings_layout.addLayout(course_info_layout)
@@ -108,6 +121,8 @@ class AccountDetailDialog(QDialog):
         self.select_none_btn = QPushButton("取消全选")
         self.select_all_btn.clicked.connect(self.select_all_units)
         self.select_none_btn.clicked.connect(self.select_none_units)
+        self.select_all_btn.setEnabled(False)
+        self.select_none_btn.setEnabled(False)
         select_btn_layout.addWidget(self.select_all_btn)
         select_btn_layout.addWidget(self.select_none_btn)
         select_btn_layout.addStretch()
@@ -185,10 +200,10 @@ class AccountDetailDialog(QDialog):
         
         # 控制按钮
         control_layout = QHBoxLayout()
-        self.start_btn = QPushButton("▶️ 开始刷作业")
+        self.start_btn = QPushButton("开始刷作业")
         self.start_btn.setEnabled(False)
         self.start_btn.clicked.connect(self.start_study)
-        self.stop_btn = QPushButton("⏹️ 停止")
+        self.stop_btn = QPushButton("停止任务")
         self.stop_btn.setEnabled(False)
         self.stop_btn.clicked.connect(self.stop_study)
         control_layout.addWidget(self.start_btn)
@@ -213,6 +228,7 @@ class AccountDetailDialog(QDialog):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setStyleSheet("font-family: Consolas, monospace; font-size: 12px;")
+        self.log_text.setPlaceholderText("登录、拉取课程和任务执行日志会显示在这里。")
         log_layout.addWidget(self.log_text)
         
         clear_log_btn = QPushButton("清空日志")
@@ -222,12 +238,13 @@ class AccountDetailDialog(QDialog):
         right_layout.addWidget(log_group)
         splitter.addWidget(right_widget)
         
-        splitter.setSizes([350, 350])
+        splitter.setSizes([460, 500])
         layout.addWidget(splitter)
     
     def log(self, message: str):
         """添加日志"""
-        self.log_text.append(message)
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.log_text.append(f"[{timestamp}] {message}")
         self.log_text.verticalScrollBar().setValue(
             self.log_text.verticalScrollBar().maximum()
         )
@@ -256,7 +273,7 @@ class AccountDetailDialog(QDialog):
         
         if success:
             self.is_logged_in = True
-            self.login_btn.setText("✅ 已登录")
+            self.login_btn.setText("已登录")
             self.login_btn.setEnabled(False)
             self.refresh_courses_btn.setEnabled(True)
             self.log(f"✅ 登录成功")
@@ -264,7 +281,7 @@ class AccountDetailDialog(QDialog):
             # 自动刷新课程
             self.refresh_courses()
         else:
-            self.login_btn.setText("🔐 登录")
+            self.login_btn.setText("登录账号")
             self.log(f"❌ 登录失败: {message}")
             self.update_status("登录失败", message)
             QMessageBox.warning(self, "登录失败", message)
@@ -336,9 +353,13 @@ class AccountDetailDialog(QDialog):
                 item.setData(Qt.ItemDataRole.UserRole, i)  # 存储索引
                 self.unit_list.addItem(item)
             
+            self.select_all_btn.setEnabled(True)
+            self.select_none_btn.setEnabled(True)
             self.start_btn.setEnabled(True)
             self.log(f"✅ 获取到 {len(self.current_units)} 个单元")
         else:
+            self.select_all_btn.setEnabled(False)
+            self.select_none_btn.setEnabled(False)
             self.log(f"❌ 获取单元失败: {message}")
     
     def select_all_units(self):
@@ -356,11 +377,11 @@ class AccountDetailDialog(QDialog):
         if mode == "刷作业":
             self.homework_widget.show()
             self.time_widget.hide()
-            self.start_btn.setText("▶️ 开始刷作业")
+            self.start_btn.setText("开始刷作业")
         else:
             self.homework_widget.hide()
             self.time_widget.show()
-            self.start_btn.setText("▶️ 开始刷时长")
+            self.start_btn.setText("开始刷时长")
     
     def start_study(self):
         """开始任务"""
@@ -380,6 +401,7 @@ class AccountDetailDialog(QDialog):
             return
         
         mode = self.mode_combo.currentText()
+        self._manual_stop_requested = False
         
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
@@ -426,10 +448,12 @@ class AccountDetailDialog(QDialog):
     def stop_study(self):
         """停止任务"""
         if self.study_thread and self.study_thread.isRunning():
-            self.study_thread.quit()
+            self._manual_stop_requested = True
+            if hasattr(self.study_thread, "stop"):
+                self.study_thread.stop()
             self.study_thread.wait(2000)
             if self.study_thread.isRunning():
-                self.study_thread.terminate()
+                self.log("停止请求已发送，正在等待当前子任务结束。")
         
         self.start_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
@@ -448,6 +472,12 @@ class AccountDetailDialog(QDialog):
         self.stop_btn.setEnabled(False)
         self.progress_bar.setVisible(False)
         
+        if self._manual_stop_requested:
+            self._manual_stop_requested = False
+            self.study_thread = None
+            self.log("任务已停止，后台线程已结束。")
+            return
+        
         mode = self.mode_combo.currentText()
         if mode == "刷作业":
             msg = f"步骤1成功: {result.get('way1_succeed', 0)}, 失败: {result.get('way1_failed', 0)}\n"
@@ -457,6 +487,8 @@ class AccountDetailDialog(QDialog):
             self.log("✅ 刷时长完成！")
         
         self.update_status("已完成")
+        self._manual_stop_requested = False
+        self.study_thread = None
         QMessageBox.information(self, "完成", "任务已完成！")
     
     def closeEvent(self, event):
@@ -466,9 +498,13 @@ class AccountDetailDialog(QDialog):
             if hasattr(self.study_thread, 'stop'):
                 self.study_thread.stop()
             if self.study_thread.isRunning():
-                self.study_thread.quit()
                 self.study_thread.wait(3000)
                 if self.study_thread.isRunning():
-                    self.study_thread.terminate()
-                    self.study_thread.wait(1000)
+                    QMessageBox.information(
+                        self,
+                        "请稍候",
+                        "后台任务仍在结束中，请稍后再关闭当前窗口。"
+                    )
+                    event.ignore()
+                    return
         event.accept()

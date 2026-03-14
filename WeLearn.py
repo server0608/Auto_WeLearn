@@ -708,7 +708,7 @@ class WeLearnUI(QMainWindow):
         
         info_layout = QHBoxLayout()
         info_layout.addWidget(QLabel("""
-        GitHub: jhl337
+        GitHub: server0608/Auto_WeLearn
         本人是一位来自黑大的苦逼学生，因不满校内各种付费代刷课，所以制作了这款软件
         
         软件仅供学习参考使用，永久免费禁止倒卖
@@ -941,7 +941,7 @@ class WeLearnUI(QMainWindow):
             self.random_accuracy_label.setText(f"{min_val}%-{max_val}%")
 
     def do_open_browser(self, checked=False):
-        webbrowser.open("https://github.com/jhl337/Auto_WeLearn/")
+        webbrowser.open("https://github.com/server0608/Auto_WeLearn")
 
     def do_open_browser2(self, checked=False):
         webbrowser.open("http://welearn.sflep.com")

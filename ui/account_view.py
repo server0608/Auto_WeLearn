@@ -2,13 +2,18 @@
 账号管理视图
 主界面核心组件 - 显示账号列表、状态和操作按钮
 """
+from pathlib import Path
+
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QTableWidget, QTableWidgetItem, QLabel, QFileDialog, QMessageBox,
-    QLineEdit, QDialog, QHeaderView, QAbstractItemView
+    QLineEdit, QDialog, QHeaderView, QAbstractItemView, QFrame
 )
 from core.account_manager import AccountManager, Account
+
+
+DESKTOP_ACCOUNT_FILE = Path(__file__).resolve().parents[1] / "data" / "desktop_accounts.json"
 
 
 class AddAccountDialog(QDialog):
@@ -73,28 +78,94 @@ class AccountView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.account_manager = AccountManager()
+        self.storage_path = DESKTOP_ACCOUNT_FILE
         self.init_ui()
-    
+        self.load_accounts()
+        self.refresh_table()
+
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
+
+        # ========== 顶部信息区 ==========
+        hero_panel = QFrame()
+        hero_panel.setObjectName("HeroPanel")
+        hero_layout = QHBoxLayout(hero_panel)
+        hero_layout.setContentsMargins(24, 22, 24, 22)
+
+        title_layout = QVBoxLayout()
+        eyebrow = QLabel("DESKTOP CONTROL")
+        eyebrow.setObjectName("HeroEyebrow")
+        title_layout.addWidget(eyebrow)
+
+        title_label = QLabel("WeLearn 多账号控制台")
+        title_label.setObjectName("HeroTitle")
+        title_layout.addWidget(title_label)
+
+        subtitle = QLabel("集中管理账号、筛选目标课程，并在单账号窗口内执行自动化任务。")
+        subtitle.setObjectName("HeroSubtitle")
+        subtitle.setWordWrap(True)
+        title_layout.addWidget(subtitle)
+        hero_layout.addLayout(title_layout, 1)
+
+        search_layout = QVBoxLayout()
+        search_tip = QLabel("快速筛选")
+        search_tip.setObjectName("SectionLabel")
+        search_layout.addWidget(search_tip)
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("按用户名、昵称或目标课程搜索")
+        self.search_input.setClearButtonEnabled(True)
+        self.search_input.textChanged.connect(self.refresh_table)
+        search_layout.addWidget(self.search_input)
+        hero_layout.addLayout(search_layout, 1)
+        layout.addWidget(hero_panel)
+
+        # ========== 统计卡片 ==========
+        metrics_layout = QHBoxLayout()
+        metrics_layout.setSpacing(12)
+        self.total_card = self.create_metric_card("账号总数", "0")
+        self.running_card = self.create_metric_card("运行中", "0")
+        self.completed_card = self.create_metric_card("已完成", "0")
+        metrics_layout.addWidget(self.total_card)
+        metrics_layout.addWidget(self.running_card)
+        metrics_layout.addWidget(self.completed_card)
+        layout.addLayout(metrics_layout)
+
         # ========== 工具栏 ==========
-        toolbar_layout = QHBoxLayout()
-        
-        self.add_btn = QPushButton("➕ 添加账号")
-        self.delete_btn = QPushButton("🗑️ 删除选中")
-        
+        toolbar_panel = QFrame()
+        toolbar_panel.setObjectName("ToolbarPanel")
+        toolbar_layout = QHBoxLayout(toolbar_panel)
+        toolbar_layout.setContentsMargins(18, 16, 18, 16)
+
+        self.add_btn = QPushButton("添加账号")
+        self.delete_btn = QPushButton("删除选中")
+
         self.add_btn.clicked.connect(self.add_account)
         self.delete_btn.clicked.connect(self.delete_selected)
-        
+
         toolbar_layout.addWidget(self.add_btn)
         toolbar_layout.addWidget(self.delete_btn)
         toolbar_layout.addStretch()
-        
-        layout.addLayout(toolbar_layout)
-        
+        layout.addWidget(toolbar_panel)
+
         # ========== 账号表格 ==========
+        table_panel = QFrame()
+        table_panel.setObjectName("TablePanel")
+        table_layout = QVBoxLayout(table_panel)
+        table_layout.setContentsMargins(18, 18, 18, 18)
+        table_layout.setSpacing(12)
+
+        table_header_layout = QHBoxLayout()
+        table_title = QLabel("账号列表")
+        table_title.setObjectName("SectionTitle")
+        table_header_layout.addWidget(table_title)
+        table_header_layout.addStretch()
+        self.table_hint_label = QLabel("双击或点击“管理”进入账号详情")
+        self.table_hint_label.setObjectName("SectionHint")
+        table_header_layout.addWidget(self.table_hint_label)
+        table_layout.addLayout(table_header_layout)
+
         self.account_table = QTableWidget()
         self.account_table.setColumnCount(6)
         self.account_table.setHorizontalHeaderLabels([
@@ -113,22 +184,56 @@ class AccountView(QWidget):
         self.account_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.account_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.account_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.account_table.setAlternatingRowColors(True)
+        self.account_table.setShowGrid(False)
+        self.account_table.verticalHeader().setVisible(False)
+        self.account_table.verticalHeader().setDefaultSectionSize(46)
         
         # 双击打开详情
         self.account_table.doubleClicked.connect(self.on_row_double_clicked)
         
-        layout.addWidget(self.account_table)
+        table_layout.addWidget(self.account_table)
+        layout.addWidget(table_panel, 1)
         
         # ========== 状态栏 ==========
         status_layout = QHBoxLayout()
-        self.status_label = QLabel("账号数: 0")
+        self.status_label = QLabel("显示 0 / 0")
+        self.status_label.setObjectName("FooterInfo")
         self.running_label = QLabel("运行中: 0")
+        self.running_label.setObjectName("FooterInfo")
         status_layout.addWidget(self.status_label)
         status_layout.addWidget(self.running_label)
         status_layout.addStretch()
         
         layout.addLayout(status_layout)
-    
+
+    def create_metric_card(self, title: str, value: str) -> QFrame:
+        card = QFrame()
+        card.setObjectName("SummaryCard")
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(18, 16, 18, 16)
+        card_layout.setSpacing(6)
+
+        title_label = QLabel(title)
+        title_label.setObjectName("MetricTitle")
+        card_layout.addWidget(title_label)
+
+        value_label = QLabel(value)
+        value_label.setObjectName("MetricValue")
+        card_layout.addWidget(value_label)
+
+        card.value_label = value_label
+        return card
+
+    def load_accounts(self):
+        """加载桌面版本地账号列表。"""
+        self.account_manager.load_from_file(self.storage_path)
+        self.account_manager.reset_all_status()
+
+    def persist_accounts(self):
+        """保存桌面版本地账号列表。"""
+        self.account_manager.save_to_file(self.storage_path)
+
     def add_account(self):
         """添加账号"""
         dialog = AddAccountDialog(self)
@@ -140,6 +245,7 @@ class AccountView(QWidget):
                 return
             
             if self.account_manager.add_account(username, password, nickname):
+                self.persist_accounts()
                 self.refresh_table()
                 QMessageBox.information(self, "成功", "账号添加成功")
             else:
@@ -156,6 +262,7 @@ class AccountView(QWidget):
             if error:
                 QMessageBox.warning(self, "导入失败", error)
             else:
+                self.persist_accounts()
                 self.refresh_table()
                 QMessageBox.information(self, "导入成功", f"成功导入 {count} 个账号")
     
@@ -194,6 +301,7 @@ class AccountView(QWidget):
                 row = index.row()
                 username = self.account_table.item(row, 0).text()
                 self.account_manager.remove_account(username)
+            self.persist_accounts()
             self.refresh_table()
     
     def on_row_double_clicked(self, index):
@@ -207,11 +315,21 @@ class AccountView(QWidget):
     def refresh_table(self):
         """刷新账号表格"""
         accounts = self.account_manager.get_all_accounts()
-        self.account_table.setRowCount(len(accounts))
-        
-        running_count = 0
-        
-        for i, acc in enumerate(accounts):
+        query = self.search_input.text().strip().lower() if hasattr(self, "search_input") else ""
+        filtered_accounts = []
+
+        for acc in accounts:
+            target_course = getattr(acc, "target_course_name", None) or ""
+            if query and not any(
+                query in value.lower()
+                for value in [acc.username, acc.nickname or "", target_course]
+            ):
+                continue
+            filtered_accounts.append(acc)
+
+        self.account_table.setRowCount(len(filtered_accounts))
+
+        for i, acc in enumerate(filtered_accounts):
             # 用户名
             self.account_table.setItem(i, 0, QTableWidgetItem(acc.username))
             # 昵称
@@ -220,7 +338,6 @@ class AccountView(QWidget):
             status_item = QTableWidgetItem(acc.status)
             if acc.status == "运行中":
                 status_item.setForeground(Qt.GlobalColor.blue)
-                running_count += 1
             elif acc.status == "已完成":
                 status_item.setForeground(Qt.GlobalColor.darkGreen)
             elif acc.status == "失败":
@@ -238,9 +355,14 @@ class AccountView(QWidget):
             self.account_table.setCellWidget(i, 5, manage_btn)
         
         # 更新状态栏
-        self.status_label.setText(f"账号数: {len(accounts)}")
-        self.running_label.setText(f"运行中: {running_count}")
-    
+        total_running = sum(1 for acc in accounts if acc.status == "运行中")
+        total_completed = sum(1 for acc in accounts if acc.status == "已完成")
+        self.total_card.value_label.setText(str(len(accounts)))
+        self.running_card.value_label.setText(str(total_running))
+        self.completed_card.value_label.setText(str(total_completed))
+        self.status_label.setText(f"显示 {len(filtered_accounts)} / {len(accounts)}")
+        self.running_label.setText(f"运行中: {total_running}")
+
     def on_manage_clicked(self):
         """管理按钮点击"""
         btn = self.sender()

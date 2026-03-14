@@ -23,7 +23,7 @@
         <td>{{ c.get('name') }}</td>
         <td>{{ c.get('per', 0) }}%</td>
         <td>
-          <a href="{{ url_for('account_units', account_username=account.username, cid=c.get('cid')) }}?course_name={{ c.get('name') }}" style="color:var(--accent);font-weight:700;">选择单元</a>
+          <a href="{{ url_for('account_units', account_username=account.username, cid=c.get('cid'), course_name=c.get('name')) }}" style="color:var(--accent);font-weight:700;">选择单元</a>
         </td>
       </tr>
       {% endfor %}

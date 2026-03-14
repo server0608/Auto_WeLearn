@@ -73,6 +73,19 @@ def load_account_manager(username: str) -> tuple[AccountManager, str]:
     return manager, str(account_file)
 
 
+def safe_int(value: str, default: int, minimum: Optional[int] = None, maximum: Optional[int] = None) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+
+    if minimum is not None:
+        parsed = max(minimum, parsed)
+    if maximum is not None:
+        parsed = min(maximum, parsed)
+    return parsed
+
+
 @app.route("/", methods=["GET"])
 def index():
     if current_user():
@@ -217,17 +230,15 @@ def start_task():
         return redirect(url_for("dashboard"))
 
     mode = request.form.get("mode", "homework")
-    accuracy_min = int(request.form.get("accuracy_min", "100") or 100)
-    accuracy_max = int(request.form.get("accuracy_max", "100") or 100)
-    total_minutes = int(request.form.get("total_minutes", "60") or 60)
-    random_range = int(request.form.get("random_range", "5") or 5)
-    max_concurrent = int(request.form.get("max_concurrent", "5") or 5)
+    if mode not in {"homework", "time"}:
+        mode = "homework"
 
-    accuracy_min = max(0, min(100, accuracy_min))
-    accuracy_max = max(accuracy_min, min(100, accuracy_max))
-    total_minutes = max(1, total_minutes)
-    random_range = max(0, random_range)
-    max_concurrent = max(1, max_concurrent)
+    accuracy_min = safe_int(request.form.get("accuracy_min", "100"), 100, 0, 100)
+    accuracy_max = safe_int(request.form.get("accuracy_max", "100"), 100, 0, 100)
+    accuracy_max = max(accuracy_min, accuracy_max)
+    total_minutes = safe_int(request.form.get("total_minutes", "60"), 60, 1)
+    random_range = safe_int(request.form.get("random_range", "5"), 5, 0)
+    max_concurrent = safe_int(request.form.get("max_concurrent", "5"), 5, 1)
 
     manager, _ = load_account_manager(user.username)
     account = manager.get_account(account_username)

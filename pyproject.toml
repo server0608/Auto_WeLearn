@@ -1,9 +1,9 @@
 [project]
 name = "auto-welearn"
 version = "0.1.0"
-description = "Add your description here"
+description = "WeLearn automation toolkit with desktop and web interfaces"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "pyqt5>=5.15.11",
     "requests>=2.32.5",

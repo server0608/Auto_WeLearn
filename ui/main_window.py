@@ -2,9 +2,8 @@
 WeLearn 自动学习工具 - 主窗口
 多用户管理中心
 """
-from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QMainWindow, QVBoxLayout, QWidget, QMenuBar, QMenu, QAction,
+    QMainWindow, QAction,
     QMessageBox, QStatusBar
 )
 
@@ -26,55 +25,162 @@ class WeLearnUI(QMainWindow):
     
     def init_ui(self):
         self.setWindowTitle("WeLearn 自动学习工具 - 多用户版")
-        self.setGeometry(100, 100, 900, 600)
-        self.setMinimumSize(800, 500)
+        self.setGeometry(120, 80, 1180, 760)
+        self.setMinimumSize(980, 640)
         
         # 设置样式
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #f5f5f5;
+                background-color: #f4efe6;
+                color: #18212f;
+            }
+            QMenuBar {
+                background: #f8f4eb;
+                border-bottom: 1px solid #e3d8c6;
+                padding: 6px 10px;
+                spacing: 6px;
+            }
+            QMenuBar::item {
+                background: transparent;
+                border-radius: 8px;
+                padding: 8px 12px;
+            }
+            QMenuBar::item:selected {
+                background: #efe2ca;
+            }
+            QMenu {
+                background: #fffaf0;
+                border: 1px solid #decfb7;
+                padding: 6px;
+            }
+            QMenu::item {
+                padding: 8px 18px;
+                border-radius: 8px;
+            }
+            QMenu::item:selected {
+                background: #efe2ca;
             }
             QGroupBox {
                 font-weight: bold;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-                margin-top: 1ex;
-                padding-top: 10px;
+                color: #18212f;
+                border: 1px solid #e3d8c6;
+                border-radius: 16px;
+                margin-top: 14px;
+                padding-top: 18px;
+                background: #fffaf0;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
+                left: 14px;
+                padding: 0 8px;
+                color: #6c4f2a;
             }
             QPushButton {
-                background-color: #4CAF50;
+                background-color: #1d6b50;
                 border: none;
                 color: white;
-                padding: 8px 16px;
+                padding: 10px 18px;
                 font-size: 13px;
-                border-radius: 4px;
+                font-weight: 600;
+                border-radius: 12px;
             }
             QPushButton:hover {
-                background-color: #45a049;
+                background-color: #175740;
             }
             QPushButton:disabled {
-                background-color: #cccccc;
+                background-color: #c8c0b5;
+                color: #6f675b;
             }
             QTableWidget {
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                background-color: white;
+                border: 1px solid #e4d9c8;
+                border-radius: 16px;
+                background-color: #fffdf8;
+                alternate-background-color: #faf4ea;
+                gridline-color: #efe5d6;
+                selection-background-color: #e3efe8;
             }
             QTableWidget::item:selected {
-                background-color: #e3f2fd;
-                color: black;
+                color: #18212f;
             }
             QHeaderView::section {
-                background-color: #f0f0f0;
-                padding: 8px;
+                background-color: #f7efe3;
+                color: #6c4f2a;
+                padding: 10px 12px;
                 border: none;
-                border-bottom: 1px solid #ddd;
+                border-bottom: 1px solid #e4d9c8;
                 font-weight: bold;
+            }
+            QLineEdit, QComboBox, QSpinBox, QListWidget, QTextEdit {
+                background: #fffdf8;
+                border: 1px solid #decfb7;
+                border-radius: 12px;
+                padding: 8px 10px;
+                color: #18212f;
+            }
+            QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QListWidget:focus, QTextEdit:focus {
+                border: 1px solid #1d6b50;
+            }
+            QListWidget {
+                padding: 6px;
+            }
+            QListWidget::item {
+                padding: 8px 10px;
+                border-radius: 10px;
+            }
+            QListWidget::item:selected {
+                background: #e3efe8;
+                color: #18212f;
+            }
+            QProgressBar {
+                border: 1px solid #decfb7;
+                border-radius: 10px;
+                background: #f5ede1;
+                text-align: center;
+                color: #18212f;
+            }
+            QProgressBar::chunk {
+                background: #1d6b50;
+                border-radius: 9px;
+            }
+            QStatusBar {
+                background: #f8f4eb;
+                border-top: 1px solid #e3d8c6;
+                color: #6d6253;
+            }
+            QFrame#HeroPanel, QFrame#ToolbarPanel, QFrame#TablePanel, QFrame#SummaryCard {
+                background: #fffaf0;
+                border: 1px solid #e3d8c6;
+                border-radius: 18px;
+            }
+            QLabel#HeroEyebrow {
+                color: #8f6f49;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 1px;
+            }
+            QLabel#HeroTitle {
+                color: #18212f;
+                font-size: 26px;
+                font-weight: 700;
+            }
+            QLabel#HeroSubtitle, QLabel#SectionHint, QLabel#FooterInfo {
+                color: #6d6253;
+                font-size: 13px;
+            }
+            QLabel#SectionTitle {
+                color: #18212f;
+                font-size: 18px;
+                font-weight: 700;
+            }
+            QLabel#SectionLabel, QLabel#MetricTitle {
+                color: #8f6f49;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            QLabel#MetricValue {
+                color: #18212f;
+                font-size: 26px;
+                font-weight: 700;
             }
         """)
         
@@ -89,7 +195,7 @@ class WeLearnUI(QMainWindow):
         # ========== 状态栏 ==========
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("就绪 - 添加账号开始使用")
+        self.status_bar.showMessage("就绪 - 本地账号会自动保存到 data/desktop_accounts.json")
     
     def create_menu_bar(self):
         """创建菜单栏"""
@@ -169,26 +275,30 @@ class WeLearnUI(QMainWindow):
             """
             <h3>WeLearn 自动学习工具</h3>
             <p>版本: 2.0 (多用户版)</p>
-            <p>作者: jhl337</p>
+            <p>仓库: server0608/Auto_WeLearn</p>
             <hr>
             <p>本人是一位来自黑大的苦逼学生，因不满校内各种付费代刷课，所以制作了这款软件。</p>
             <p><b>软件仅供学习参考使用，永久免费禁止倒卖</b></p>
             <p>禁止使用软件进行任何代刷牟利，以此造成的任何问题本人不负责任。</p>
             <hr>
-            <p>有任何问题欢迎提交 Issue 多多交流</p>
+            <p>有任何问题欢迎在仓库中提交 Issue。</p>
             """
         )
     
     def open_github(self):
         """打开 GitHub 项目页面"""
         import webbrowser
-        webbrowser.open("https://github.com/jhl337/Auto_WeLearn/")
+        webbrowser.open("https://github.com/server0608/Auto_WeLearn")
     
     def closeEvent(self, event):
         """关闭窗口时清理"""
         # 关闭所有详情对话框
         for dialog in list(self.detail_dialogs.values()):
             dialog.close()
+            if dialog.isVisible():
+                self.status_bar.showMessage("仍有任务窗口在关闭中，请稍后再退出。")
+                event.ignore()
+                return
         self.detail_dialogs.clear()
         
         # 强制退出应用

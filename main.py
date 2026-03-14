@@ -1,5 +1,7 @@
 import sys
 import traceback
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from ui.main_window import WeLearnUI
 
@@ -21,8 +23,12 @@ def exception_hook(exctype, value, tb):
 def main():
     # 安装全局异常处理
     sys.excepthook = exception_hook
+
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
     
     app = QApplication(sys.argv)
+    app.setFont(QFont("Microsoft YaHei UI", 10))
     window = WeLearnUI()
     window.show()
     sys.exit(app.exec_())
