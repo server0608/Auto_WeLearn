@@ -1,0 +1,10 @@
+name = "auto-wellearn-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+kv_namespaces = [
+  { binding = "WELEARN_KV", id = "YOUR_KV_NAMESPACE_ID" }
+]
+
+[vars]
+WELEARN_WEB_PORT = "8000"
