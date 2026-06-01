@@ -3,6 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 [![PyQt5](https://img.shields.io/badge/PyQt5-5.15+-green.svg)](https://pypi.org/project/PyQt5/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-black.svg)](https://pypi.org/project/Flask/)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020.svg)](https://workers.cloudflare.com/)
 
 WeLearn 自动学习工具，提供桌面版多账号控制台和 Web 控制台两套界面，用于管理账号、选择课程单元，并执行刷作业或刷时长任务。
 
@@ -128,7 +129,55 @@ student2,password2
 - `data/users.json`：Web 控制台用户数据
 - `data/accounts/<username>.json`：Web 控制台下每个登录用户的 WeLearn 账号数据
 
-## 项目结构
+## Cloudflare Workers 部署
+
+将 Web 版部署到 Cloudflare Workers，全球访问，无需服务器。
+
+### 部署前提
+
+1. [Cloudflare 账号](https://dash.cloudflare.com/)
+2. [GitHub 账号](https://github.com/)
+
+### 一键部署
+
+1. **Fork 本仓库**
+
+2. **获取 Cloudflare 凭证**
+   - Account ID：[Cloudflare Dashboard](https://dash.cloudflare.com/) 右侧边栏底部
+   - API Token：Profile → API Tokens → Create Token → Edit Cloudflare Workers
+
+3. **添加 GitHub Secrets**
+   - 仓库 → Settings → Secrets and variables → Actions → New repository secret
+   - 添加 `CLOUDFLARE_API_TOKEN` 和 `CLOUDFLARE_ACCOUNT_ID`
+
+4. **创建 KV Namespace**
+   - [Cloudflare Dashboard](https://dash.cloudflare.com/) → Workers & Pages → KV → Create namespace
+   - 命名 `WELEARN_KV`，复制 ID
+   - 在 `worker/wrangler.toml` 中替换 `YOUR_KV_NAMESPACE_ID`
+
+5. **推送代码**
+   ```bash
+   git push origin master
+   ```
+
+6. **触发部署**
+   - 仓库 → Actions → "Deploy to Cloudflare Workers" → Run workflow
+
+7. **访问**
+   ```
+   https://auto-wellearn.<你的 workers 域名>.workers.dev
+   ```
+
+### 本地开发
+
+```bash
+cd worker
+npm install
+npx wrangler login
+npx wrangler dev
+```
+
+### 项目结构
 
 ```text
 Auto_WeLearn/
@@ -140,5 +189,9 @@ Auto_WeLearn/
 ├── web_app.py               # Web 版入口
 ├── WeLearn.py               # 原始单文件兼容版本
 ├── pyproject.toml           # 项目配置
-└── requirements.txt         # pip 依赖
+├── requirements.txt          # pip 依赖
+└── worker/                  # Cloudflare Workers 部署
+    ├── src/                 # TypeScript 源码
+    ├── wrangler.toml        # Workers 配置
+    └── README.md            # Workers 部署说明
 ```
