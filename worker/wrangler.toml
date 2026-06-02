@@ -1,9 +1,6 @@
-name = "auto-wellearn-worker"
+name = "auto-welearn-worker"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
-
-[vars]
-WELEARN_ADMIN_PASSWORD = "admin123"
 
 [[kv_namespaces]]
 binding = "WELEARN_KV"

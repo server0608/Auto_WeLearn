@@ -1,16 +1,15 @@
-import type { AppUser, Account, StudyTask } from './types';
+import type { AppUser, Account, StudyTask } from '../types';
 
 const USERS_KEY = 'users';
 const TASKS_KEY = 'tasks';
 const DEFAULT_ADMIN_PASSWORD = 'admin123';
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
-function hashPassword(password: string): string {
-  let hash = 5381;
-  for (let i = 0; i < password.length; i++) {
-    hash = ((hash << 5) + hash) + password.charCodeAt(i);
-    hash = hash & hash;
-  }
-  return `WELearn_${Math.abs(hash).toString(16)}`;
+async function hashPassword(password: string): Promise<string> {
+  const data = new TextEncoder().encode(password);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const hex = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+  return `sha256:${hex}`;
 }
 
 export class KVStore {
@@ -37,7 +36,7 @@ export class KVStore {
   async addUser(username: string, password: string, role: 'user' | 'admin' = 'user'): Promise<{ ok: boolean; msg: string }> {
     const users = await this.getUsers();
     if (users.has(username)) return { ok: false, msg: '用户已存在' };
-    const password_hash = hashPassword(password);
+    const password_hash = await hashPassword(password);
     users.set(username, { username, password_hash, role });
     await this.saveUsers(users);
     return { ok: true, msg: '' };
@@ -60,7 +59,7 @@ export class KVStore {
   async validateCredentials(username: string, password: string): Promise<AppUser | null> {
     const user = await this.getUser(username);
     if (!user) return null;
-    const hash = hashPassword(password);
+    const hash = await hashPassword(password);
     if (user.password_hash !== hash) return null;
     return user;
   }
@@ -70,12 +69,30 @@ export class KVStore {
     return Array.from(users.values());
   }
 
-  async ensureAdmin(): Promise<void> {
+  async ensureAdmin(adminPassword: string = DEFAULT_ADMIN_PASSWORD): Promise<void> {
     const users = await this.getUsers();
     if (users.size === 0) {
-      users.set('admin', { username: 'admin', password_hash: hashPassword(DEFAULT_ADMIN_PASSWORD), role: 'admin' });
+      users.set('admin', { username: 'admin', password_hash: await hashPassword(adminPassword || DEFAULT_ADMIN_PASSWORD), role: 'admin' });
       await this.saveUsers(users);
     }
+  }
+
+  async createSession(username: string): Promise<string> {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    const sessionId = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    await this.kv.put(`session:${sessionId}`, username, { expirationTtl: SESSION_TTL_SECONDS });
+    return sessionId;
+  }
+
+  async getSessionUser(sessionId: string): Promise<AppUser | undefined> {
+    const username = await this.kv.get(`session:${sessionId}`);
+    if (!username) return undefined;
+    return this.getUser(username);
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    await this.kv.delete(`session:${sessionId}`);
   }
 
   async getAccounts(username: string): Promise<Account[]> {

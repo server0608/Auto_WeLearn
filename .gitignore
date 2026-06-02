@@ -10,6 +10,8 @@ venv/
 ENV/
 env/
 .env
+node_modules/
+worker/node_modules/
 
 # Python 版本管理
 .python-version

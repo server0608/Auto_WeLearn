@@ -1,18 +1,23 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { html } from 'hono/html';
+import { getCookie } from 'hono/cookie';
 import type { KVNamespace } from '@cloudflare/workers-types';
 import { KVStore } from './kv/store';
 import { WeLearnClient } from './kv/welearn';
-import type { Account, StudyTask, TaskLog } from './types';
+import type { StudyTask } from './types';
 
 interface Env {
   WELEARN_KV: KVNamespace;
+  WELEARN_ADMIN_PASSWORD?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.use('*', cors());
+app.use('*', async (c, next) => {
+  await kv(c.env).ensureAdmin(c.env.WELEARN_ADMIN_PASSWORD);
+  await next();
+});
 
 const kv = (env: Env) => new KVStore(env.WELEARN_KV);
 
@@ -79,27 +84,29 @@ small{color:#6d6253;font-size:12px}
   return new Response(htmlContent, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
-function redirect(location: string): Response {
-  return new Response(null, { status: 302, headers: { Location: location } });
+function redirect(location: string, cookie?: string): Response {
+  const headers = new Headers({ Location: location });
+  if (cookie) headers.set('Set-Cookie', cookie);
+  return new Response(null, { status: 302, headers });
 }
 
 function getSessionCookie(c: any): string | undefined {
-  return c.req.cookie('session')?.value;
+  return getCookie(c, 'session');
 }
 
-function setSessionCookie(c: any, username: string): void {
-  c.header('Set-Cookie', `session=${username}; Path=/; HttpOnly; SameSite=Lax`);
+function sessionCookie(sessionId: string): string {
+  return `session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`;
 }
 
-function clearSessionCookie(c: any): void {
-  c.header('Set-Cookie', 'session=; Path=/; HttpOnly; Max-Age=0');
+function expiredSessionCookie(): string {
+  return 'session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0';
 }
 
 async function getCurrentUser(c: any) {
   const session = getSessionCookie(c);
   if (!session) return null;
   const store = kv(c.env);
-  return await store.getUser(session);
+  return await store.getSessionUser(session);
 }
 
 function safeInt(value: string, defaultVal: number, min?: number, max?: number): number {
@@ -166,8 +173,8 @@ app.post('/login', async (c) => {
   const user = await store.validateCredentials(username, password);
 
   if (user) {
-    setSessionCookie(c, user.username);
-    return redirect(nextUrl);
+    const sessionId = await store.createSession(user.username);
+    return redirect(nextUrl, sessionCookie(sessionId));
   }
 
   const content = `
@@ -250,8 +257,11 @@ app.post('/register', async (c) => {
 
 // Logout
 app.post('/logout', async (c) => {
-  clearSessionCookie(c);
-  return redirect('/login');
+  const session = getSessionCookie(c);
+  if (session) {
+    await kv(c.env).deleteSession(session);
+  }
+  return redirect('/login', expiredSessionCookie());
 });
 
 // Dashboard
@@ -471,7 +481,8 @@ app.post('/tasks/start', async (c) => {
   }
 
   const accuracyMin = safeInt(String(body.accuracy_min || '100'), 100, 0, 100);
-  const accuracyMax = safeInt(String(body.accuracy_max || '100'), 100, 0, 100);
+  const rawAccuracyMax = safeInt(String(body.accuracy_max || '100'), 100, 0, 100);
+  const accuracyMax = Math.max(accuracyMin, rawAccuracyMax);
   const totalMinutes = safeInt(String(body.total_minutes || '60'), 60, 1);
   const randomRange = safeInt(String(body.random_range || '5'), 5, 0);
   const maxConcurrent = safeInt(String(body.max_concurrent || '5'), 5, 1);
@@ -506,7 +517,7 @@ app.post('/tasks/start', async (c) => {
   await store.createTask(task);
 
   const client = new WeLearnClient();
-  runTask(task, client, store);
+  c.executionCtx.waitUntil(runTask(task, client, store));
 
   return redirect(`/tasks/${taskId}`);
 });
@@ -551,6 +562,8 @@ async function runHomeworkMode(task: StudyTask, client: WeLearnClient, store: KV
   let w1s = 0, w1f = 0, w2s = 0, w2f = 0;
 
   for (const unitIdx of task.units) {
+    if (await shouldStop(task, store)) return;
+
     task.logs.push({ level: 'info', message: `开始单元 ${unitIdx + 1}`, timestamp: Date.now() / 1000 });
     await store.updateTask(task.id, task);
 
@@ -563,6 +576,8 @@ async function runHomeworkMode(task: StudyTask, client: WeLearnClient, store: KV
     }
 
     for (const chapter of leavesRes.leaves) {
+      if (await shouldStop(task, store)) return;
+
       const ch = chapter as Record<string, unknown>;
       const name = String(ch.location || ch.id || '未知课程');
 
@@ -573,7 +588,7 @@ async function runHomeworkMode(task: StudyTask, client: WeLearnClient, store: KV
       }
 
       if (typeof ch.iscomplete === 'string' && ch.iscomplete.includes('未')) {
-        const accuracy = task.accuracy_range[0] + Math.floor(Math.random() * (task.accuracy_range[1] - task.accuracy_range[0]));
+        const accuracy = task.accuracy_range[0] + Math.floor(Math.random() * (task.accuracy_range[1] - task.accuracy_range[0] + 1));
         const res = await client.submitCourseProgress(task.cid, task.uid, task.classid, String(ch.id), accuracy);
 
         w1s += res.w1s; w1f += res.w1f; w2s += res.w2s; w2f += res.w2f;
@@ -597,6 +612,8 @@ async function runTimeMode(task: StudyTask, client: WeLearnClient, store: KVStor
   const allChapters: Record<string, unknown>[] = [];
 
   for (const unitIdx of task.units) {
+    if (await shouldStop(task, store)) return;
+
     const res = await client.getScoLeaves(task.cid, task.uid, task.classid, unitIdx);
     if (res.ok) {
       const visible = res.leaves.filter(ch => (ch as Record<string, unknown>).isvisible !== 'false');
@@ -624,6 +641,8 @@ async function runTimeMode(task: StudyTask, client: WeLearnClient, store: KVStor
   let successCount = 0, failCount = 0;
 
   for (const chapter of allChapters) {
+    if (await shouldStop(task, store)) return;
+
     const name = String(chapter.location || chapter.id || '课程');
     const learningTime = perCourseSeconds;
 
@@ -643,6 +662,15 @@ async function runTimeMode(task: StudyTask, client: WeLearnClient, store: KVStor
   }
 
   task.result = { way1_succeed: successCount, way1_failed: failCount, way2_succeed: successCount, way2_failed: failCount };
+}
+
+async function shouldStop(task: StudyTask, store: KVStore): Promise<boolean> {
+  const latest = await store.getTask(task.id);
+  if (latest?.status !== 'stopped') return false;
+  task.status = 'stopped';
+  task.logs.push({ level: 'warning', message: '任务已停止', timestamp: Date.now() / 1000 });
+  await store.updateTask(task.id, task);
+  return true;
 }
 
 // Task detail

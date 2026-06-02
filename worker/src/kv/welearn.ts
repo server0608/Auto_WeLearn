@@ -20,18 +20,65 @@ export interface CourseInfo {
 }
 
 export class WeLearnClient {
-  private cookies: string[] = [];
+  private cookies = new Map<string, string>();
 
   private async fetch(url: string, init?: RequestInit): Promise<Response> {
-    const response = await fetch(url, {
+    let currentUrl = url;
+    let response: Response;
+
+    for (let redirectCount = 0; redirectCount < 5; redirectCount++) {
+      response = await fetch(currentUrl, {
+        ...init,
+        headers: this.headers(init?.headers),
+        redirect: 'manual',
+      });
+
+      this.rememberCookies(response.headers);
+
+      if (![301, 302, 303, 307, 308].includes(response.status)) {
+        return response;
+      }
+
+      const location = response.headers.get('Location');
+      if (!location) return response;
+      currentUrl = new URL(location, currentUrl).toString();
+    }
+
+    response = await fetch(currentUrl, {
       ...init,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        ...init?.headers,
-      },
-      redirect: 'follow',
+      headers: this.headers(init?.headers),
+      redirect: 'manual',
     });
+    this.rememberCookies(response.headers);
     return response;
+  }
+
+  private headers(headers?: HeadersInit): Headers {
+    const result = new Headers(headers);
+    result.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    const cookie = Array.from(this.cookies.entries()).map(([name, value]) => `${name}=${value}`).join('; ');
+    if (cookie) result.set('Cookie', cookie);
+    return result;
+  }
+
+  private rememberCookies(headers: Headers): void {
+    const getSetCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
+    const rawCookies = getSetCookie ? getSetCookie.call(headers) : [];
+    const raw = headers.get('Set-Cookie');
+    const cookies = rawCookies.length > 0 ? rawCookies : raw ? splitSetCookie(raw) : [];
+
+    for (const cookie of cookies) {
+      const [pair] = cookie.split(';');
+      const eqIndex = pair.indexOf('=');
+      if (eqIndex <= 0) continue;
+      const name = pair.slice(0, eqIndex).trim();
+      const value = pair.slice(eqIndex + 1).trim();
+      if (!value) {
+        this.cookies.delete(name);
+      } else {
+        this.cookies.set(name, value);
+      }
+    }
   }
 
   async login(username: string, password: string): Promise<LoginResult> {
@@ -309,4 +356,8 @@ export class WeLearnClient {
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function splitSetCookie(header: string): string[] {
+  return header.split(/,(?=\s*[^;,\s]+=)/g).map(part => part.trim()).filter(Boolean);
 }
