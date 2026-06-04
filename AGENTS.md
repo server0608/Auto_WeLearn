@@ -2,12 +2,13 @@
 
 ## Project
 
-WeLearn (sflep.com) automation toolkit with two UIs: PyQt5 desktop (`main.py`) and Flask web (`web_app.py`). UI language is Chinese.
+WeLearn (sflep.com) automation toolkit with three UIs: PyQt5 desktop (`main.py`), Flask web (`web_app.py`), and a separate Cloudflare Workers web app (`worker/`). UI language is Chinese.
 
 ## Entrypoints
 
 - **Desktop**: `uv run python main.py` — multi-account manager with course/unit selection, homework and time-attack modes
 - **Web**: `uv run python web_app.py` — browser UI at `http://0.0.0.0:8000`, default admin `admin / admin123` (or `$WELEARN_ADMIN_PASSWORD`)
+- **Workers**: `cd worker && npm run dev` — standalone TypeScript/Hono Worker, not a wrapper around Flask
 
 ## Commands
 
@@ -16,6 +17,9 @@ uv sync                    # install deps (preferred)
 python -m venv .venv && pip install -r requirements.txt   # pip fallback
 uv run python main.py      # desktop app
 uv run python web_app.py   # web app (port 8000, set WELEARN_WEB_PORT to change)
+cd worker && npm install   # install Workers deps
+cd worker && npm run typecheck
+cd worker && npm run dev   # local Workers app at http://localhost:8787
 ```
 
 ## Structure
@@ -25,6 +29,7 @@ core/              # API client, account mgr, crypto, user store, task runner, b
 ui/                # PyQt5 desktop widgets (main_window, account_view, account_detail, workers)
 templates/         # Flask Jinja2 templates
 data/              # auto-created persistent data
+worker/            # independent Cloudflare Workers TypeScript/Hono app
 WeLearn.py         # legacy single-file version (not imported, standalone)
 ```
 
@@ -36,15 +41,20 @@ WeLearn.py         # legacy single-file version (not imported, standalone)
 | `data/users.json` | Web app user store (admin/user roles, werkzeug password hashes) |
 | `data/accounts/<username>.json` | Per-user WeLearn account data (web app) |
 
+Workers KV keys: `users`, `accounts:<username>`, `tasks`, and `session:<random>` (7-day session TTL).
+
 ## Key quirks
 
 - **PyQt5 is Windows-only**. `uv.lock` has `resolution-markers` pinned to `sys_platform == 'win32' and platform_machine == 'AMD64'`. Desktop mode will not work on Linux/macOS. The web UI works cross-platform.
 - **uv.lock requires Python >=3.13**; `pyproject.toml` says >=3.12. If uv fails, use pip.
-- **No tests, no linter, no typechecker** configured. No CI.
+- **No Python tests, linter, or typechecker** configured. The Workers app has `npm run typecheck`.
+- CI only deploys `worker/**` to Cloudflare Workers on pushes to `main` via `.github/workflows/deploy-worker.yml`; do not use `master` for deployment changes.
 - Web app secret key defaults to `"change-me"` unless `WELEARN_WEB_SECRET` env var is set.
 - Login uses SSO with custom base64/timestamp-based password obfuscation (`core/crypto.py`).
 - Two task modes: `homework` (submits SCO progress with configurable accuracy) and `time` (simulates watching, concurrent via ThreadPoolExecutor).
 - Web task IDs are 8-char hex UUIDs. Tasks run in daemon threads — no persistence, lost on restart.
+- Workers task IDs are 8-char base36 strings. Tasks persist in KV and run through `ctx.waitUntil()`; long time-attack tasks may be limited by Workers request lifecycle/platform resources.
+- `worker/wrangler.toml` ships with `YOUR_KV_NAMESPACE_ID`; replace it before deploying. Use Wrangler Secret `WELEARN_ADMIN_PASSWORD` for production admin password.
 - Account import supports CSV and TXT; lines starting with `#` are skipped.
 
 ## How to add credentials for web
