@@ -1,0 +1,19 @@
+name = "welearn-worker"
+main = "src/index.ts"
+compatibility_date = "2024-04-19"
+
+[vars]
+SECRET_KEY = "change-me-random-string"
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
+
+[triggers]
+crons = ["* * * * *"]
+
+[[durable_objects.bindings]]
+name = "WELEARN_STATE"
+class_name = "WeLearnState"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["WeLearnState"]
